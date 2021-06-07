@@ -111,7 +111,7 @@ class Renderer(object):
         hit_pos = ray.origin + ray.direction * dist_hit
 
         normal = hit_pos - obj_hit.position
-
+        normal = normal.normalize()
         hit_pos = hit_pos + normal * 0.0001
 
         shadow = self.traceToLight(hit_pos, scene)
@@ -123,41 +123,13 @@ class Renderer(object):
         #         return ColorRGBA(0, 0.3, 0.4, 1)
 
         if obj_hit.material == "diffuse":
-            NdotL = normal.dot(shadow.direction)
+            NdotL = normal.dot(shadow.direction.normalize())
             return color * NdotL
+        elif obj_hit.material == "transparent":
+            return self.traceReflection(ray, scene, 3)
 
-        if obj_hit.material == "transparent":
-            return ColorRGBA(1, 1, 1, 1)
-        #
-        # # main loop for bouncing rays
-        # for i in range(depth):
-        #     # where did the ray hit and what it hit
-        #     dist_hit, obj_hit = self.findNearest(ray, scene)
-        #
-        #     if obj_hit is None:
-        #         return color
-        #     elif obj_hit.type == "light":
-        #         return ColorRGBA(1, 1, 1, 1)
-        #     color = obj_hit.color
-        #
-        #     hit_pos = ray.origin + ray.direction * dist_hit
-        #
-        #     normal = Ray(origin=hit_pos,
-        #                  direction=(hit_pos - obj_hit.position))
-        #     hit_pos = hit_pos + normal.direction * 0.0001
-        #     shadow = self.traceToLight(hit_pos, scene)
-        #
-        #     if shadow is False:
-        #         return ColorRGBA(0, 0, 0, 0)
-        #     elif obj_hit.material == "diffuse":
-        #         NdotL = normal.direction.dot(shadow)
-        #         return color * NdotL
-        #     # else:
-        #     #     return color
-        #     ray = Ray(origin=hit_pos,
-        #               direction=ray.direction.refract(normal.direction, 1.2))
-        #
-        # color = color
+        # if obj_hit.material == "transparent":
+        #     return ColorRGBA(1, 1, 1, 1)
 
         return color
 
@@ -171,16 +143,68 @@ class Renderer(object):
             return color
         elif obj_hit.type == "light":
             return ColorRGBA(1, 1, 1, 1)
-        elif obj_hit.type == "diffuse":
-            return obj_hit.color
+        elif obj_hit.material == "diffuse":
+            color = obj_hit.color
+            hit_pos = ray.origin + ray.direction * dist_hit
+
+            normal = hit_pos - obj_hit.position
+            normal = normal.normalize()
+            hit_pos = hit_pos + normal * 0.0001
+
+            shadow = self.traceToLight(hit_pos, scene)
+            if shadow is None:
+                return ColorRGBA(0.0, 0.0, 0.0, 0)
+
+            if obj_hit.material == "diffuse":
+                NdotL = normal.dot(shadow.direction.normalize())
+                return color * NdotL
+
         else:
             hit_pos = ray.origin + ray.direction * dist_hit
+            normal = hit_pos - obj_hit.position
+            normal = normal.normalize()
+            hit_pos = hit_pos + normal * 0.0001
             reflection = Ray(origin=hit_pos,
-                             direction=ray.direction.reflect((hit_pos - obj_hit.position)))
+                             direction=ray.direction.reflect(normal))
             return color + self.traceReflection(reflection, scene, depth-1)
 
     def traceRefraction(self, ray, scene, depth):
-        pass
+        color = ColorRGBA(0, 0, 0, 0)
+        if depth == 0:
+            return color
+        dist_hit, obj_hit = self.findNearest(ray, scene)
+
+        if obj_hit is None:
+            return color
+        elif obj_hit.type == "light":
+            return ColorRGBA(1, 1, 1, 1)
+        elif obj_hit.material == "diffuse":
+            color = obj_hit.color
+            hit_pos = ray.origin + ray.direction * dist_hit
+
+            normal = hit_pos - obj_hit.position
+            normal = normal.normalize()
+            hit_pos = hit_pos + normal * 0.0001
+
+            shadow = self.traceToLight(hit_pos, scene)
+            if shadow is None:
+                return ColorRGBA(0.0, 0.0, 0.0, 0)
+
+            if obj_hit.material == "diffuse":
+                NdotL = normal.dot(shadow.direction.normalize())
+                return color * NdotL
+
+        else:
+            hit_pos = ray.origin + ray.direction * dist_hit
+            normal = hit_pos - obj_hit.position
+            normal = normal.normalize()
+            hit_pos = hit_pos + normal * 0.0001
+            refr = ray.direction.refract(normal, 1.5)
+            if refr == 0:
+                return ColorRGBA(0, 0, 0, 0)
+            refraction = Ray(origin=hit_pos,
+                             direction=refr)
+            return color + self.traceRefraction(refraction, scene, depth - 1)
 
     @staticmethod
     def findNearest(ray, scene):
