@@ -2,6 +2,7 @@ import json
 import sys
 import random
 import time
+from multiprocessing import Pool
 
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -9,6 +10,7 @@ from PySide2.QtWidgets import *
 from renderer import *
 from scene import Scene
 from sphere import Sphere
+
 
 class PaintWidget(QWidget):
     def __init__(self, width, height, parent=None):
@@ -32,7 +34,7 @@ class PaintWidget(QWidget):
 class PyTraceMainWindow(QMainWindow):
     def __init__(self, qApp, width, height):
         super(PyTraceMainWindow, self).__init__()
-
+        self.two_done = False
         self.qApp = qApp
         self.width = width
         self.height = height
@@ -84,18 +86,23 @@ class PyTraceMainWindow(QMainWindow):
         self.statusBar.setStyleSheet("background-color:gray;")
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready...")
+    @staticmethod
+    def renderMultiprocess(hmin):
+        return hmin
 
     def timerBuffer(self):
         print("Updating buffer...")
         # randHue = random.random()
 
-
         # go through pixels
+        start = time.time()
         for y in range(0, height):
+            self.statusBar.showMessage(
+                "{:.1f}%         cpu count is".format(y / self.height * 100))
             for x in range(0, width):
-
                 ren = renderer.render(scene, x, y)
                 col = QColor.fromRgb(ren[0], ren[1], ren[2])
+
                 self.paintWidget.imgBuffer.setPixelColor(x, y, col)
 
             # update buffer
@@ -104,9 +111,40 @@ class PyTraceMainWindow(QMainWindow):
             self.updateBuffer()
             # don't wait for the task to finish to update the view
             qApp.processEvents()
+        end = time.time()
+        print(end - start)
 
     def updateBuffer(self):
         self.paintWidget.update()
+
+
+class Worker(QRunnable):
+    '''
+    Worker thread
+
+    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
+
+    :param callback: The function callback to run on this worker thread. Supplied args and
+                     kwargs will be passed through to the runner.
+    :type callback: function
+    :param args: Arguments to pass to the callback function
+    :param kwargs: Keywords to pass to the callback function
+
+    '''
+
+    def __init__(self, fn, *args, **kwargs):
+        super(Worker, self).__init__()
+        # Store constructor arguments (re-used for processing)
+        self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
+
+    @Slot()  # QtCore.Slot
+    def run(self):
+        '''
+        Initialise the runner function with passed args, kwargs.
+        '''
+        self.fn(*self.args, **self.kwargs)
 
 
 if __name__ == "__main__":
@@ -115,6 +153,7 @@ if __name__ == "__main__":
     qApp.setOrganizationName("CENG488")
     qApp.setOrganizationDomain("cavevfx.com")
     qApp.setApplicationName("PyTrace")
+
 
     global scene
     scene = Scene()
@@ -132,6 +171,7 @@ if __name__ == "__main__":
         sphere3 = Sphere.load(render_settings["sphere3"])
         sphere4 = Sphere.load(render_settings["sphere4"])
         light1 = Sphere.load(render_settings["light1"], "light")
+        light2 = Sphere.load(render_settings["light2"], "light")
         ground = Sphere.load(render_settings["ground"])
     # sphere1.color = ColorRGBA(1, 0, 0, 1)
     # sphere2.color = ColorRGBA(0, 1, 0, 0)
@@ -144,11 +184,11 @@ if __name__ == "__main__":
     scene.addNode(sphere4)
     scene.addNode(light1)
     scene.addLight(light1)
-    print(light1.type)
-    print(sphere1.type)
+    # scene.addNode(light2)
+    # scene.addLight(light2)
     # scene.addNode(sphere3)
     scene.addNode(ground)
-    print("lala")
+
     global renderer
     renderer = Renderer(
         width=RENDER_WIDTH,
@@ -161,6 +201,7 @@ if __name__ == "__main__":
         )
         )
     )
+
     # setup main ui
     width = 900
     height = 900
@@ -171,7 +212,7 @@ if __name__ == "__main__":
     # an example of writing to buffer
     mainTimer = QTimer()
     mainTimer.timeout.connect(mainWindow.timerBuffer)
-    mainTimer.start(000)
+    mainTimer.start(0)
 
     # enter event loop
     sys.exit(qApp.exec_())

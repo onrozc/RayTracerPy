@@ -103,30 +103,58 @@ class Renderer(object):
         color = ColorRGBA(0.1, 0.1, 0.1, 0)
         # Find the nearest object hit by the ray in the scene
         dist_hit, obj_hit = self.findNearest(ray, scene)
+        # if ray hits nothing return Background color
         if obj_hit is None:
             return color
+        # if ray hits light we will return lights color. In this case light is white
         elif obj_hit.type == "light":
             return ColorRGBA(1, 1, 1, 1)
-        color = obj_hit.color
-        hit_pos = ray.origin + ray.direction * dist_hit
 
+        # so if we reached here it means we are hitting an object in the screen, so what is it? Is it matte(diffuse),
+        # or is it transparent like glass or water. Or is it mirror.
+        # Each object has their color (fixed for now)
+        color = obj_hit.color
+        # exact point of the intersection of ray and sphere
+        hit_pos = ray.origin + ray.direction * dist_hit
+        # normal at the hit position
         normal = hit_pos - obj_hit.position
         normal = normal.normalize()
+        # due to our finite memory there will be numeric errors. So ving the hit position out a little fixes those.
         hit_pos = hit_pos + normal * 0.0001
 
+        # This is either none or A ray to a light but it must return list of lights, not a single light hit status.
+        # TODO: Return multiple lights
         shadow = self.traceToLight(hit_pos, scene)
+        # this means the point is not seeing any light hence it is shadow.
+        # TODO: Ambient Occlusion
         if shadow is None:
             return ColorRGBA(0.0, 0.0, 0.0, 0)
         # if obj_hit.radius > 100:
         #     print(hit_pos)
         #     if int(hit_pos.x) % 2 == 1 and  int(hit_pos.z) % 2 == 1:
         #         return ColorRGBA(0, 0.3, 0.4, 1)
-
+        # If the object is matte calculate the diffuse and specular lights of the fragment
         if obj_hit.material == "diffuse":
+            # do this for each light
+            # diffuse part
             NdotL = normal.dot(shadow.direction.normalize())
-            return color * NdotL
+
+            # specular part
+            specStr = 0.5
+            reflectDir = shadow.direction.normalize().reflect(normal)
+            spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 16)
+            specular = specStr * spec
+            # reflectDir =
+            return color * (specular + NdotL)
+
+        # If the object is transparent there will be two rays:
+        #   1) Reflection
+        #   2) Refraction
+        # And we need to combine those two for sake of Newton. Fresnel equations come in handy for that.
         elif obj_hit.material == "transparent":
-            return self.traceReflection(ray, scene, 3)
+            fresnel = self.fresnel(ray.direction, normal, 1.1)
+            return (self.traceReflection(ray, scene, 6) * fresnel + self.traceRefraction(ray, scene, 6)) * (
+                    1 - fresnel)
 
         # if obj_hit.material == "transparent":
         #     return ColorRGBA(1, 1, 1, 1)
@@ -134,7 +162,7 @@ class Renderer(object):
         return color
 
     def traceReflection(self, ray, scene, depth):
-        color = ColorRGBA(0, 0, 0, 0)
+        color = ColorRGBA(0.1, 0.1, 0.1, 0)
         if depth == 0:
             return color
         dist_hit, obj_hit = self.findNearest(ray, scene)
@@ -157,7 +185,14 @@ class Renderer(object):
 
             if obj_hit.material == "diffuse":
                 NdotL = normal.dot(shadow.direction.normalize())
-                return color * NdotL
+
+                # specular part
+                specStr = 0.3
+                reflectDir = shadow.direction.normalize().reflect(normal)
+                spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 16)
+                specular = specStr * spec
+
+                return color * (specular + NdotL)
 
         else:
             hit_pos = ray.origin + ray.direction * dist_hit
@@ -166,10 +201,10 @@ class Renderer(object):
             hit_pos = hit_pos + normal * 0.0001
             reflection = Ray(origin=hit_pos,
                              direction=ray.direction.reflect(normal))
-            return color + self.traceReflection(reflection, scene, depth-1)
+            return color + self.traceReflection(reflection, scene, depth - 1)
 
     def traceRefraction(self, ray, scene, depth):
-        color = ColorRGBA(0, 0, 0, 0)
+        color = ColorRGBA(0.1, 0.1, 0.1, 0)
         if depth == 0:
             return color
         dist_hit, obj_hit = self.findNearest(ray, scene)
@@ -192,19 +227,62 @@ class Renderer(object):
 
             if obj_hit.material == "diffuse":
                 NdotL = normal.dot(shadow.direction.normalize())
-                return color * NdotL
+
+                # specular part
+                specStr = 0.5
+                reflectDir = shadow.direction.normalize().reflect(normal)
+                spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 16)
+                specular = specStr * spec
+                # reflectDir =
+                return color * (specular + NdotL)
 
         else:
             hit_pos = ray.origin + ray.direction * dist_hit
             normal = hit_pos - obj_hit.position
             normal = normal.normalize()
-            hit_pos = hit_pos + normal * 0.0001
-            refr = ray.direction.refract(normal, 1.5)
+            NdotL = normal.dot(ray.direction)
+            hit_pos = hit_pos - normal * 0.0001
+            if NdotL <= 0:
+                refr = ray.direction.refract(normal, 1.1)
+            else:
+                refr = ray.direction.refract(normal, 1)
             if refr == 0:
-                return ColorRGBA(0, 0, 0, 0)
+                internalReflection = Ray(origin=hit_pos,
+                                         direction=ray.direction.reflect(-normal))
+                color + self.traceReflection(internalReflection, scene, depth - 1)
             refraction = Ray(origin=hit_pos,
                              direction=refr)
             return color + self.traceRefraction(refraction, scene, depth - 1)
+
+    @staticmethod
+    def phong(lights, normal, intensity):
+        diffuse = ColorRGBA(0, 0, 0, 1)
+        for light in lights:
+            NdotL = light.direction.dot(normal)
+            diffuse += intensity * NdotL * light.color
+        return diffuse
+
+    @staticmethod
+    def specularColor(L, N, R, Intensity):
+        pass
+
+    @staticmethod
+    def fresnel(ray, normal, ior):
+        angle = ray.cosa(normal)
+        etai = 1
+        etat = ior
+        if angle > 0:
+            etai, etat = etat, etai
+
+        sint = etai / etat * math.sqrt(max(0.0, 1 - angle * angle))
+        if sint >= 1:
+            return 1
+        else:
+            cost = math.sqrt(max(0.0, 1 - sint * sint))
+            angle = abs(angle)
+            Rs = ((etat * angle) - (etai * cost)) / ((etat * angle) + (etai * cost))
+            Rp = ((etai * angle) - (etat * cost)) / ((etai * angle) + (etat * cost))
+            return (Rs * Rs + Rp * Rp) / 2
 
     @staticmethod
     def findNearest(ray, scene):
@@ -241,6 +319,12 @@ class Renderer(object):
         return False
 
     def traceToLight(self, point, scene):
+        """
+        Currently Works only for one light
+        :param point:
+        :param scene:
+        :return:
+        """
         minDistance = None
         objHit = None
         rayHit = None
@@ -260,15 +344,6 @@ class Renderer(object):
             return None
 
         return rayHit
-
-        # for light in scene.lights:
-        #     ray = Ray(origin=point,
-        #               direction=(light.position - point))
-        #     dist_hit, obj_hit = self.findNearest(ray, scene)
-        #     if obj_hit is not None:
-        #         if obj_hit.type == "light":
-        #             return ray.direction
-        # return False
 
     def ambient(self, normal, scene):
         """
