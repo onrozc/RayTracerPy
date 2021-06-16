@@ -12,4 +12,5 @@ class Scene:
         self.objects.append(node)
 
     def addLight(self, light):
+        self.objects.append(light)
         self.lights.append(light)

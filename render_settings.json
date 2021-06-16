@@ -2,50 +2,38 @@
   "renderSettings": {
     "xres": 900,
     "yres": 900,
-    "samples": 50
+    "samples": 100
   },
-  "sphere1": {
-    "radius": 0.2,
-    "position": [-1, 0.1, 2],
-    "rotation": [0.0, 0.0, 0.0],
-    "scale": [1.0, 1.0, 1.0]
-  },
-  "sphere2": {
-    "radius": 0.3,
-    "position": [-1.01, 0.8, 2.0],
-    "rotation": [0.0, 0.0, 0.0],
-    "scale": [1.0, 1.0, 1.0]
-  },
-  "sphere3": {
-    "radius": 1,
-    "position": [0, 0.4, 4.0],
-    "rotation": [0.0, 0.0, 0.0],
-    "scale": [1.0, 1.0, 1.0]
-  },
-  "sphere4": {
-    "radius": 0.9,
-    "position": [2, 0.5, 5.0],
-    "rotation": [0.0, 0.0, 0.0],
-    "scale": [1.0, 1.0, 1.0]
-  },
-  "ground": {
-    "radius": 1000,
-    "position": [0.0, 1000, -50.0],
-    "rotation": [0.0, 0.0, 0.0],
-    "scale": [1.0, 1.0, 1.0]
-  },
-  "light1": {
-    "radius": 0.1,
-    "position": [0, -3.0, 1.0],
-    "rotation": [0.0, 0.0, 0.0],
-    "scale": [1.0, 1.0, 1.0]
-  },
-  "light2": {
-    "radius": 0.1,
-    "position": [0, 3.0, 1.0],
-    "rotation": [0.0, 0.0, 0.0],
-    "scale": [1.0, 1.0, 1.0]
-  },
+  "spheres": [
+    {
+      "radius": 0.2,
+      "position": [-1, 0.1, 2],
+      "color": [1.0, 0.0, 0.0]
+    }, {
+      "radius": 0.3,
+      "position": [-1.01, 0.8, 2.0],
+      "color": [0.0, 1.0, 0.0]
+    }, {
+      "radius": 1,
+      "position": [0, 0.4, 4.0],
+      "color": [1.0, 1.0, 0.0]
+    },{
+      "radius": 0.9,
+      "position": [2, 0.5, 5.0],
+      "color": [0.0, 1.0, 1.0]
+    },{
+      "radius": 1000,
+      "position": [0.0, 1000, -50.0],
+      "color": [0.0, 1.0, 0.0]
+    }
+  ],
+  "lights": [
+    {
+      "radius": 0.1,
+      "position": [0, -3.0, 3.0],
+      "color": [1.0, 1.0, 1.0]
+    }
+  ],
   "camera": {
     "position":  [0.0, 0.0, 0.0],
     "rotation": [0.0, 0.0, 0.0],

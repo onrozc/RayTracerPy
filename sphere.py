@@ -14,11 +14,13 @@ class Sphere:
     def load(prop, sType="object"):
         try:
             pos = prop["position"]
+            clr = prop["color"]
+            print(clr)
             return Sphere(radius=prop["radius"],
                           position=Point3f(pos[0], pos[1], pos[2]),
-                          color=ColorRGBA(random.uniform(0, 1),
-                                          random.uniform(0, 1),
-                                          random.uniform(0, 1), 1),
+                          color=ColorRGBA(clr[0],
+                                          clr[1],
+                                          clr[2], 1),
                           sType=sType)
         except ValueError:
             raise Exception("Parsing Error!")

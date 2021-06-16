@@ -1,8 +1,10 @@
 import json
+import multiprocessing
 import sys
 import random
 import time
 from multiprocessing import Pool
+
 
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -86,6 +88,7 @@ class PyTraceMainWindow(QMainWindow):
         self.statusBar.setStyleSheet("background-color:gray;")
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready...")
+
     @staticmethod
     def renderMultiprocess(hmin):
         return hmin
@@ -98,9 +101,10 @@ class PyTraceMainWindow(QMainWindow):
         start = time.time()
         for y in range(0, height):
             self.statusBar.showMessage(
-                "{:.1f}%         cpu count is".format(y / self.height * 100))
+                "{:.1f}%                    cpu count is:{}".format(y / self.height * 100, multiprocessing.cpu_count()))
             for x in range(0, width):
                 ren = renderer.render(scene, x, y)
+
                 col = QColor.fromRgb(ren[0], ren[1], ren[2])
 
                 self.paintWidget.imgBuffer.setPixelColor(x, y, col)
@@ -154,7 +158,6 @@ if __name__ == "__main__":
     qApp.setOrganizationDomain("cavevfx.com")
     qApp.setApplicationName("PyTrace")
 
-
     global scene
     scene = Scene()
     with open('render_settings.json', 'r') as file:
@@ -164,30 +167,12 @@ if __name__ == "__main__":
         RENDER_HEIGHT = render_settings["renderSettings"]["yres"]
         SAMPLES = render_settings["renderSettings"]["samples"]
         CAM_POS = render_settings["camera"]["position"]
-
-        sphere1 = Sphere.load(render_settings["sphere1"])
-
-        sphere2 = Sphere.load(render_settings["sphere2"])
-        sphere3 = Sphere.load(render_settings["sphere3"])
-        sphere4 = Sphere.load(render_settings["sphere4"])
-        light1 = Sphere.load(render_settings["light1"], "light")
-        light2 = Sphere.load(render_settings["light2"], "light")
-        ground = Sphere.load(render_settings["ground"])
-    # sphere1.color = ColorRGBA(1, 0, 0, 1)
-    # sphere2.color = ColorRGBA(0, 1, 0, 0)
-    # ground.color = ColorRGBA(0, 0, 1, 0)
-    sphere1.material = "transparent"
-    sphere2.material = "transparent"
-    scene.addNode(sphere1)
-    scene.addNode(sphere2)
-    scene.addNode(sphere3)
-    scene.addNode(sphere4)
-    scene.addNode(light1)
-    scene.addLight(light1)
-    # scene.addNode(light2)
-    # scene.addLight(light2)
-    # scene.addNode(sphere3)
-    scene.addNode(ground)
+        for sphereSettings in render_settings["spheres"]:
+            sphere = Sphere.load(sphereSettings)
+            scene.addNode(sphere)
+        for lightSettings in render_settings["lights"]:
+            light = Sphere.load(lightSettings, "light")
+            scene.addLight(light)
 
     global renderer
     renderer = Renderer(

@@ -72,18 +72,6 @@ class Renderer(object):
         ray = Ray(origin=self.camera.camPosition, direction=Point3f(image_x, image_y, 1) - self.camera.camPosition)
         clr = self.trace(ray, scene)
         return to_byte(clr.r), to_byte(clr.g), to_byte(clr.b)
-        # for each column
-        # for y in range(0, self.height):
-        #     print("{:.1f}%".format(y / self.height * 100))
-        #     # print("%{} is done".format(y/10))
-        #     image_y = y0 + y * y_pixel
-        #
-        #     # for each row
-        #     for x in range(self.width):
-        #         image_x = x0 + x * x_pixel
-        #         ray = Ray(origin=self.camera.camPosition, direction=Point3f(image_x, image_y, 1) - self.camera.camPosition)
-        #         clr = self.trace(ray, scene)
-        #         self.data[y][x] = [to_byte(clr.r), to_byte(clr.g), to_byte(clr.b)]
 
     def writeTo(self, name='output.png'):
         img = Image.fromarray(self.data, 'RGB')
@@ -108,7 +96,7 @@ class Renderer(object):
             return color
         # if ray hits light we will return lights color. In this case light is white
         elif obj_hit.type == "light":
-            return ColorRGBA(1, 1, 1, 1)
+            return obj_hit.color
 
         # so if we reached here it means we are hitting an object in the screen, so what is it? Is it matte(diffuse),
         # or is it transparent like glass or water. Or is it mirror.
@@ -128,7 +116,13 @@ class Renderer(object):
         # this means the point is not seeing any light hence it is shadow.
         # TODO: Ambient Occlusion
         if shadow is None:
-            return ColorRGBA(0.0, 0.0, 0.0, 0)
+            return self.ambient(Ray(hit_pos, normal), scene, obj_hit.color) * 0.1
+        else:
+            ambientStr = 0.1
+            ambient = self.ambient(Ray(hit_pos, normal), scene, obj_hit.color) * ambientStr
+
+
+            # return ColorRGBA(0.0, 0.0, 0.0, 0)
         # if obj_hit.radius > 100:
         #     print(hit_pos)
         #     if int(hit_pos.x) % 2 == 1 and  int(hit_pos.z) % 2 == 1:
@@ -137,15 +131,15 @@ class Renderer(object):
         if obj_hit.material == "diffuse":
             # do this for each light
             # diffuse part
-            NdotL = normal.dot(shadow.direction.normalize())
+            NdotL = normal.dot(shadow.direction.normalize())* 0.6
 
             # specular part
-            specStr = 0.5
+            specStr = 0.3
             reflectDir = shadow.direction.normalize().reflect(normal)
-            spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 16)
+            spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 8)
             specular = specStr * spec
             # reflectDir =
-            return color * (specular + NdotL)
+            return color * (specular + NdotL+0.001) + ambient
 
         # If the object is transparent there will be two rays:
         #   1) Reflection
@@ -345,7 +339,7 @@ class Renderer(object):
 
         return rayHit
 
-    def ambient(self, normal, scene):
+    def ambient(self, normal, scene, objColor):
         """
         Shooting Rays that are aligned to the normal. And finds the percentage of rays hitting at least one object.
 
@@ -354,7 +348,7 @@ class Renderer(object):
         :return: Returns ambient intensity of the point
         """
         light_intensity = 0
-
+        color = ColorRGBA(0.0, 0.0, 0.0, 0)
         normalDir = normal.direction
         # coordinate system with our normal is Y axis, soon to be used to rotate samples
         Nt, Nb = self.createCoordSystem(normal)
@@ -387,12 +381,18 @@ class Renderer(object):
 
             sampleRay = Ray(origin=normal.origin,
                             direction=sample)
-            isHitting = self.isHittingSomething(sampleRay, scene)
-            # if sample hits any object
-            if isHitting is True:
-                light_intensity += 1
+            # _, nearestObj = self.findNearest(sampleRay, scene)
+            # if nearestObj is not None:
+            #     color += nearestObj.color
 
-        return self.SAMPLE_COUNT - light_intensity
+            isHitting = self.isHittingSomething(sampleRay, scene)
+            if isHitting is False:
+                color += objColor
+            # if sample hits any object
+            # if isHitting is True:
+            #     light_intensity += 1
+        return color/self.SAMPLE_COUNT
+        # return self.SAMPLE_COUNT - light_intensity
 
     @staticmethod
     def createCoordSystem(normal):
