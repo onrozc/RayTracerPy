@@ -19,8 +19,6 @@ class Sphere:
                 material = prop["material"]
             except KeyError:
                 material = "diffuse"
-
-            print(clr)
             return Sphere(radius=prop["radius"],
                           position=Point3f(pos[0], pos[1], pos[2]),
                           color=ColorRGBA(clr[0],

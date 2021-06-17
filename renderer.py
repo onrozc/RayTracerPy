@@ -69,7 +69,7 @@ class Renderer(object):
         image_y = y0 + y * y_pixel
         image_x = x0 + x * x_pixel
 
-        ray = Ray(origin=self.camera.camPosition, direction=Point3f(image_x, image_y, 1) - self.camera.camPosition)
+        ray = Ray(origin=self.camera.camPosition, direction=Point3f(image_x, image_y, 0) - self.camera.camPosition)
         clr = self.trace(ray, scene)
         return to_byte(clr.r), to_byte(clr.g), to_byte(clr.b)
 
@@ -139,7 +139,7 @@ class Renderer(object):
         #   2) Refraction
         # And we need to combine those two for sake of Newton. Fresnel equations come in handy for that.
         elif obj_hit.material == "transparent":
-            fresnel = self.fresnel(ray.direction, normal, 1.1)
+            fresnel = self.fresnel(ray.direction, normal, 1.3)
             return (self.traceReflection(ray, scene, 6) * fresnel + self.traceRefraction(ray, scene, 6)) * (
                     1 - fresnel)
 
@@ -214,7 +214,7 @@ class Renderer(object):
             NdotL = normal.dot(ray.direction)
             hit_pos = hit_pos - normal * 0.0001
             if NdotL <= 0:
-                refr = ray.direction.refract(normal, 1.1)
+                refr = ray.direction.refract(normal, 1.3)
             else:
                 refr = ray.direction.refract(normal, 1)
             if refr == 0:
@@ -252,7 +252,7 @@ class Renderer(object):
 
             # TODO: maybe ambient can use specific color from dome light.
 
-        return (total_specular + total_diffuse + ambient) / 2
+        return ambient + (total_specular + total_diffuse) / 2
 
     @staticmethod
     def specularColor(L, N, R, Intensity):
