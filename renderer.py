@@ -111,16 +111,17 @@ class Renderer(object):
         hit_pos = hit_pos + normal * 0.0001
 
         # This is either none or A ray to a light but it must return list of lights, not a single light hit status.
+        # return self.phongShader(eye_ray=ray, normal_ray=Ray(hit_pos, normal),
+        #                         obj_color=obj_hit.color, scene=scene)
         # TODO: Return multiple lights
-        shadow = self.traceToLight(hit_pos, scene)
+        # shadow = self.traceToLight(hit_pos, scene)
         # this means the point is not seeing any light hence it is shadow.
         # TODO: Ambient Occlusion
-        if shadow is None:
-            return self.ambient(Ray(hit_pos, normal), scene, obj_hit.color) * 0.1
-        else:
-            ambientStr = 0.1
-            ambient = self.ambient(Ray(hit_pos, normal), scene, obj_hit.color) * ambientStr
-
+        # if shadow is None:
+        #     return self.ambient(Ray(hit_pos, normal), scene, obj_hit.color) * 0.15
+        # else:
+        #     ambientStr = 0.15
+        #     ambient = self.ambient(Ray(hit_pos, normal), scene, obj_hit.color) * ambientStr
 
             # return ColorRGBA(0.0, 0.0, 0.0, 0)
         # if obj_hit.radius > 100:
@@ -129,17 +130,9 @@ class Renderer(object):
         #         return ColorRGBA(0, 0.3, 0.4, 1)
         # If the object is matte calculate the diffuse and specular lights of the fragment
         if obj_hit.material == "diffuse":
-            # do this for each light
-            # diffuse part
-            NdotL = normal.dot(shadow.direction.normalize())* 0.6
+            return self.phongShader(eye_ray=ray, normal_ray=Ray(hit_pos, normal),
+                                    obj_color=obj_hit.color, scene=scene)
 
-            # specular part
-            specStr = 0.3
-            reflectDir = shadow.direction.normalize().reflect(normal)
-            spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 8)
-            specular = specStr * spec
-            # reflectDir =
-            return color * (specular + NdotL+0.001) + ambient
 
         # If the object is transparent there will be two rays:
         #   1) Reflection
@@ -166,27 +159,26 @@ class Renderer(object):
         elif obj_hit.type == "light":
             return ColorRGBA(1, 1, 1, 1)
         elif obj_hit.material == "diffuse":
-            color = obj_hit.color
             hit_pos = ray.origin + ray.direction * dist_hit
-
             normal = hit_pos - obj_hit.position
             normal = normal.normalize()
             hit_pos = hit_pos + normal * 0.0001
-
-            shadow = self.traceToLight(hit_pos, scene)
-            if shadow is None:
-                return ColorRGBA(0.0, 0.0, 0.0, 0)
-
-            if obj_hit.material == "diffuse":
-                NdotL = normal.dot(shadow.direction.normalize())
-
-                # specular part
-                specStr = 0.3
-                reflectDir = shadow.direction.normalize().reflect(normal)
-                spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 16)
-                specular = specStr * spec
-
-                return color * (specular + NdotL)
+            return self.phongShader(eye_ray=ray, normal_ray=Ray(hit_pos, normal),
+                                    obj_color=obj_hit.color, scene=scene)
+            # shadow = self.traceToLight(hit_pos, scene)
+            # if shadow is None:
+            #     return ColorRGBA(0.0, 0.0, 0.0, 0)
+            #
+            # if obj_hit.material == "diffuse":
+            #     NdotL = normal.dot(shadow.direction.normalize())
+            #
+            #     # specular part
+            #     specStr = 0.3
+            #     reflectDir = shadow.direction.normalize().reflect(normal)
+            #     spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 16)
+            #     specular = specStr * spec
+            #
+            #     return color * (specular + NdotL)
 
         else:
             hit_pos = ray.origin + ray.direction * dist_hit
@@ -208,27 +200,12 @@ class Renderer(object):
         elif obj_hit.type == "light":
             return ColorRGBA(1, 1, 1, 1)
         elif obj_hit.material == "diffuse":
-            color = obj_hit.color
             hit_pos = ray.origin + ray.direction * dist_hit
-
             normal = hit_pos - obj_hit.position
             normal = normal.normalize()
             hit_pos = hit_pos + normal * 0.0001
-
-            shadow = self.traceToLight(hit_pos, scene)
-            if shadow is None:
-                return ColorRGBA(0.0, 0.0, 0.0, 0)
-
-            if obj_hit.material == "diffuse":
-                NdotL = normal.dot(shadow.direction.normalize())
-
-                # specular part
-                specStr = 0.5
-                reflectDir = shadow.direction.normalize().reflect(normal)
-                spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 16)
-                specular = specStr * spec
-                # reflectDir =
-                return color * (specular + NdotL)
+            return self.phongShader(eye_ray=ray, normal_ray=Ray(hit_pos, normal),
+                                    obj_color=obj_hit.color, scene=scene)
 
         else:
             hit_pos = ray.origin + ray.direction * dist_hit
@@ -248,13 +225,34 @@ class Renderer(object):
                              direction=refr)
             return color + self.traceRefraction(refraction, scene, depth - 1)
 
-    @staticmethod
-    def phong(lights, normal, intensity):
-        diffuse = ColorRGBA(0, 0, 0, 1)
-        for light in lights:
-            NdotL = light.direction.dot(normal)
-            diffuse += intensity * NdotL * light.color
-        return diffuse
+    def phongShader(self, eye_ray, normal_ray, obj_color, scene):
+        ambient_strength = 0.15
+        diffuse_strength = 0.6
+        specular_strength = 0.25
+        total_diffuse = ColorRGBA(0, 0, 0, 1)
+        total_specular = ColorRGBA(0, 0, 0, 1)
+        ambient = self.ambient(normal_ray, scene, obj_color) * ambient_strength
+        # ambient = ColorRGBA(0, 0, 0, 1)
+        for light in scene.lights:
+            ray = Ray(origin=normal_ray.origin,
+                      direction=(light.position - normal_ray.origin))
+            _, obj_hit = self.traceToLight(ray, scene)
+            if obj_hit is light:
+                # great we do hit this light
+                # diffuse part
+                n_dot_l = ray.direction.dot(normal_ray.direction)
+                total_diffuse += obj_color * n_dot_l * diffuse_strength
+
+                # specular part... fuck i need view position for this and I don't really wanna have 5 arguments.
+
+                reflect_dir = ray.direction.normalize().reflect(normal_ray.direction.normalize())
+                spec = math.pow(max(reflect_dir.normalize().dot(eye_ray.direction.normalize()), 0.0), 16)
+                specular = specular_strength * spec
+                total_specular += obj_color * specular
+
+            # TODO: maybe ambient can use specific color from dome light.
+
+        return (total_specular + total_diffuse + ambient) / 2
 
     @staticmethod
     def specularColor(L, N, R, Intensity):
@@ -312,37 +310,39 @@ class Renderer(object):
 
         return False
 
-    def traceToLight(self, point, scene):
+    def traceToLight(self, ray, scene):
         """
         Currently Works only for one light
         :param point:
         :param scene:
         :return:
+        minDistance = None
+        objHit = None
+        for obj in scene.objects:
+            dist = obj.intersect(ray)
+            if dist is not None and (objHit is None or dist < minDistance):
+                minDistance = dist
+                objHit = obj
+
+        return minDistance, objHit
         """
         minDistance = None
         objHit = None
-        rayHit = None
-        for light in scene.lights:
+        for obj in scene.objects:
+            dist = obj.intersect(ray)
+            if dist is not None and (objHit is None or dist < minDistance):
+                if obj.material == "transparent":
+                    continue
+                minDistance = dist
+                objHit = obj
 
-            ray = Ray(origin=point,
-                      direction=(light.position - point))
-            for obj in scene.objects:
-                dist = obj.intersect(ray)
-                if dist is not None and (objHit is None or dist < minDistance):
-                    if obj.material == "transparent":
-                        continue
-                    minDistance = dist
-                    objHit = obj
-                    rayHit = ray
-        if objHit.type != "light":
-            return None
-
-        return rayHit
+        return minDistance, objHit
 
     def ambient(self, normal, scene, objColor):
         """
         Shooting Rays that are aligned to the normal. And finds the percentage of rays hitting at least one object.
 
+        :param objColor:
         :param normal: Ray originated from hit point, directing hit_point - sphere_center
         :param scene:-
         :return: Returns ambient intensity of the point
@@ -391,7 +391,7 @@ class Renderer(object):
             # if sample hits any object
             # if isHitting is True:
             #     light_intensity += 1
-        return color/self.SAMPLE_COUNT
+        return color / self.SAMPLE_COUNT
         # return self.SAMPLE_COUNT - light_intensity
 
     @staticmethod

@@ -112,7 +112,7 @@ class PyTraceMainWindow(QMainWindow):
             # update buffer
             # for z in range(0, 1000):
             # 	pass
-            self.updateBuffer()
+                self.updateBuffer()
             # don't wait for the task to finish to update the view
             qApp.processEvents()
         end = time.time()

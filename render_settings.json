@@ -2,29 +2,34 @@
   "renderSettings": {
     "xres": 900,
     "yres": 900,
-    "samples": 100
+    "samples": 5
   },
   "spheres": [
     {
-      "radius": 0.2,
-      "position": [-1, 0.1, 2],
-      "color": [1.0, 0.0, 0.0]
+      "radius": 0.9,
+      "position": [-2, 0.1, 2],
+      "color": [1.0, 0.0, 0.0],
+      "material": "diffuse"
     }, {
       "radius": 0.3,
-      "position": [-1.01, 0.8, 2.0],
-      "color": [0.0, 1.0, 0.0]
+      "position": [0.4, 0.5, 2.0],
+      "color": [0.0, 1.0, 0.0],
+      "material": "transparent"
     }, {
       "radius": 1,
       "position": [0, 0.4, 4.0],
-      "color": [1.0, 1.0, 0.0]
+      "color": [1.0, 1.0, 0.0],
+      "material": "diffuse"
     },{
       "radius": 0.9,
-      "position": [2, 0.5, 5.0],
-      "color": [0.0, 1.0, 1.0]
+      "position": [1.8, 0.5, 5.0],
+      "color": [0.0, 1.0, 1.0],
+      "material": "diffuse"
     },{
       "radius": 1000,
       "position": [0.0, 1000, -50.0],
-      "color": [0.0, 1.0, 0.0]
+      "color": [0.0, 1.0, 0.0],
+      "material": "diffuse"
     }
   ],
   "lights": [
@@ -32,10 +37,15 @@
       "radius": 0.1,
       "position": [0, -3.0, 3.0],
       "color": [1.0, 1.0, 1.0]
+    },
+    {
+      "radius": 0.1,
+      "position": [1, 0.0, 3.0],
+      "color": [1.0, 1.0, 1.0]
     }
   ],
   "camera": {
-    "position":  [0.0, 0.0, 0.0],
+    "position":  [0.0, 0.0, -1.0],
     "rotation": [0.0, 0.0, 0.0],
     "scale": [1.0, 1.0, 1.0]
   }

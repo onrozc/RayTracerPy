@@ -15,13 +15,19 @@ class Sphere:
         try:
             pos = prop["position"]
             clr = prop["color"]
+            try:
+                material = prop["material"]
+            except KeyError:
+                material = "diffuse"
+
             print(clr)
             return Sphere(radius=prop["radius"],
                           position=Point3f(pos[0], pos[1], pos[2]),
                           color=ColorRGBA(clr[0],
                                           clr[1],
                                           clr[2], 1),
-                          sType=sType)
+                          sType=sType,
+                          material=material)
         except ValueError:
             raise Exception("Parsing Error!")
 
