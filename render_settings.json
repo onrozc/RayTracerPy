@@ -2,7 +2,7 @@
   "renderSettings": {
     "xres": 900,
     "yres": 900,
-    "samples": 5
+    "samples": 1
   },
   "spheres": [
     {
@@ -36,12 +36,12 @@
   "lights": [
     {
       "radius": 0.01,
-      "position": [0, -3.0, 3.0],
+      "position": [1, -2.0, 3.0],
       "color": [1.0, 1.0, 1.0]
     },
     {
       "radius": 0.01,
-      "position": [1, 0.0, 3.0],
+      "position": [-1, 1.0, 3.0],
       "color": [1.0, 1.0, 1.0]
     }
   ],

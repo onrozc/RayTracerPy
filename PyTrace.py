@@ -36,6 +36,7 @@ class PaintWidget(QWidget):
 class PyTraceMainWindow(QMainWindow):
     def __init__(self, qApp, width, height):
         super(PyTraceMainWindow, self).__init__()
+        self.dock = QDockWidget("Dockable", self)
         self.two_done = False
         self.qApp = qApp
         self.width = width
@@ -45,10 +46,11 @@ class PyTraceMainWindow(QMainWindow):
     def setupUi(self):
         if not self.objectName():
             self.setObjectName(u"PyTrace")
-        self.resize(self.width + 25, self.height + 25)
+        self.resize(self.width + 130, self.height + 30)
         self.setWindowTitle("CENG488 PyTrace")
         self.setStyleSheet("background-color:black;")
         self.setAutoFillBackground(True)
+
 
         # set centralWidget
         self.centralWidget = QWidget(self)
@@ -88,31 +90,67 @@ class PyTraceMainWindow(QMainWindow):
         self.statusBar.setStyleSheet("background-color:gray;")
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready...")
+        w = QWidget(self)
+        l = QVBoxLayout(w)
+        self.pushButton1 = QPushButton("Render!")
+        self.pushButton1.setStyleSheet("background-color: white")
+        # inputDialog = QWidget(self)
+        # inputDialog.setStyleSheet("background-color: white")
+        # self.pushButton2, b = QInputDialog.getText(inputDialog, "sample", "ana")
+        # a, c = QInputDialog.getText(inputDialog, "sample", "baba")
+        l.addWidget(self.pushButton1)
+        # l.addWidget(inputDialog)
+
+
+        self.dock.setWidget(w)
+
+        # self.pushButton.clicked.disconnect(self.buttonClick())
+
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
+        self.setLayout(self.horizontalLayout)
+
+    @staticmethod
+    def buttonClick():
+        print("Button clicked, Hello!")
 
     @staticmethod
     def renderMultiprocess(hmin):
         return hmin
 
-    def timerBuffer(self):
+    def resetBuffer(self):
+        mainWindow.pushButton1.clicked.disconnect(mainWindow.renderBuffer)
+        self.paintWidget.imgBuffer.fill(QColor(0, 0, 0))
+
+    def renderBuffer(self):
         print("Updating buffer...")
         # randHue = random.random()
-
+        AA = False
         # go through pixels
         start = time.time()
         for y in range(0, height):
             self.statusBar.showMessage(
                 "{:.1f}%                    cpu count is:{}".format(y / self.height * 100, multiprocessing.cpu_count()))
             for x in range(0, width):
-                ren = renderer.render(scene, x, y)
+                if AA:
+                    sub_samples = [renderer.render(scene, x + 0.25, y + 0.25),
+                                   renderer.render(scene, x + 0.75, y + 0.25),
+                                   renderer.render(scene, x + 0.25, y + 0.75),
+                                   renderer.render(scene, x + 0.75, y + 0.75)]
 
-                col = QColor.fromRgb(ren[0], ren[1], ren[2])
+                else:
+                    sub_samples = [renderer.render(scene, x + 0.33, y + 0.33)]
+                color = ColorRGBA(0, 0, 0, 1)
+                for sample in sub_samples:
+                    color += ColorRGBA(sample[0], sample[1], sample[2], 1)
+                color = color/len(sub_samples)
+                col = QColor.fromRgb(color.r, color.g, color.b)
 
                 self.paintWidget.imgBuffer.setPixelColor(x, y, col)
 
             # update buffer
             # for z in range(0, 1000):
             # 	pass
-                self.updateBuffer()
+            self.updateBuffer()
             # don't wait for the task to finish to update the view
             qApp.processEvents()
         end = time.time()
@@ -192,12 +230,16 @@ if __name__ == "__main__":
     height = 900
     mainWindow = PyTraceMainWindow(qApp, width, height)
     mainWindow.setupUi()
+
     mainWindow.show()
+    mainWindow.pushButton1.clicked.connect(mainWindow.renderBuffer)
 
     # an example of writing to buffer
-    mainTimer = QTimer()
-    mainTimer.timeout.connect(mainWindow.timerBuffer)
-    mainTimer.start(0)
+
+    # mainTimer = QTimer()
+    # mainTimer.timeout.connect(mainWindow.timerBuffer)
+    # mainTimer.start(1000)
+
 
     # enter event loop
     sys.exit(qApp.exec_())

@@ -149,7 +149,7 @@ class Renderer(object):
         return color
 
     def traceReflection(self, ray, scene, depth):
-        color = ColorRGBA(0.1, 0.1, 0.1, 0)
+        color = ColorRGBA(0.01, 0.01, 0.01, 0)
         if depth == 0:
             return color
         dist_hit, obj_hit = self.findNearest(ray, scene)
@@ -165,20 +165,6 @@ class Renderer(object):
             hit_pos = hit_pos + normal * 0.0001
             return self.phongShader(eye_ray=ray, normal_ray=Ray(hit_pos, normal),
                                     obj_color=obj_hit.color, scene=scene)
-            # shadow = self.traceToLight(hit_pos, scene)
-            # if shadow is None:
-            #     return ColorRGBA(0.0, 0.0, 0.0, 0)
-            #
-            # if obj_hit.material == "diffuse":
-            #     NdotL = normal.dot(shadow.direction.normalize())
-            #
-            #     # specular part
-            #     specStr = 0.3
-            #     reflectDir = shadow.direction.normalize().reflect(normal)
-            #     spec = math.pow(max(reflectDir.dot(ray.direction), 0.0), 16)
-            #     specular = specStr * spec
-            #
-            #     return color * (specular + NdotL)
 
         else:
             hit_pos = ray.origin + ray.direction * dist_hit
@@ -190,7 +176,7 @@ class Renderer(object):
             return color + self.traceReflection(reflection, scene, depth - 1)
 
     def traceRefraction(self, ray, scene, depth):
-        color = ColorRGBA(0.1, 0.1, 0.1, 0)
+        color = ColorRGBA(0.01, 0.01, 0.01, 0)
         if depth == 0:
             return color
         dist_hit, obj_hit = self.findNearest(ray, scene)
@@ -229,8 +215,8 @@ class Renderer(object):
         ambient_strength = 0.15
         diffuse_strength = 0.6
         specular_strength = 0.25
-        total_diffuse = ColorRGBA(0, 0, 0, 1)
-        total_specular = ColorRGBA(0, 0, 0, 1)
+        total_diffuse = 0
+        total_specular = 0
         ambient = self.ambient(normal_ray, scene, obj_color) * ambient_strength
         # ambient = ColorRGBA(0, 0, 0, 1)
         for light in scene.lights:
@@ -240,19 +226,19 @@ class Renderer(object):
             if obj_hit is light:
                 # great we do hit this light
                 # diffuse part
-                n_dot_l = ray.direction.dot(normal_ray.direction)
-                total_diffuse += obj_color * n_dot_l * diffuse_strength
+                n_dot_l = max(ray.direction.dot(normal_ray.direction), 0.0)
+                total_diffuse += n_dot_l * diffuse_strength
 
                 # specular part... fuck i need view position for this and I don't really wanna have 5 arguments.
 
-                reflect_dir = ray.direction.normalize().reflect(normal_ray.direction.normalize())
-                spec = math.pow(max(reflect_dir.normalize().dot(eye_ray.direction.normalize()), 0.0), 16)
+                reflect_dir = ray.direction.reflect(normal_ray.direction)
+                spec = math.pow(max(reflect_dir.normalize().dot(eye_ray.direction), 0.0), 4)
                 specular = specular_strength * spec
-                total_specular += obj_color * specular
+                total_specular += specular
 
             # TODO: maybe ambient can use specific color from dome light.
-
-        return ambient + (total_specular + total_diffuse) / 2
+        obj_color = obj_color * ((total_diffuse + total_specular) / 2)
+        return obj_color + ambient
 
     @staticmethod
     def specularColor(L, N, R, Intensity):
