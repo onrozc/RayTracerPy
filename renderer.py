@@ -36,8 +36,70 @@ class Renderer(object):
         self.camera = camera
         self.shared_data = Array("i", self.width * self.height * 3)
         self.uniforms = []
+        self.ambientOn = True
+        self.diffuseOn = True
+        self.specularOn = True
+        self.ambient_strength = 0.15
+        self.diffuse_strength = 0.6
+        self.specular_strength = 0.25
         # self.generateUniform()
         # self.createSamples()
+
+    @property
+    def ambient_strength(self) -> float:
+        return self._ambient_strength
+
+    @ambient_strength.setter
+    def ambient_strength(self, value: float):
+        self._ambient_strength = value
+
+    @property
+    def diffuse_strength(self) -> float:
+        return self._diffuse_strength
+
+    @diffuse_strength.setter
+    def diffuse_strength(self, value: float):
+        self._diffuse_strength = value
+
+    @property
+    def specular_strength(self) -> float:
+        return self._specular_strength
+
+    @specular_strength.setter
+    def specular_strength(self, value: float):
+        self._specular_strength = value
+
+    @property
+    def ambientOn(self) -> bool:
+        return self._ambientOn
+
+    @ambientOn.setter
+    def ambientOn(self, value: bool):
+        self._ambientOn = value
+
+    @property
+    def diffuseOn(self) -> bool:
+        return self._diffuseOn
+
+    @diffuseOn.setter
+    def diffuseOn(self, value: bool):
+        self._diffuseOn = value
+
+    @property
+    def specularOn(self) -> bool:
+        return self._specularOn
+
+    @specularOn.setter
+    def specularOn(self, value: bool):
+        self._specularOn = value
+
+    @property
+    def SAMPLE_COUNT(self) -> int:
+        return self._SAMPLE_COUNT
+
+    @SAMPLE_COUNT.setter
+    def SAMPLE_COUNT(self, value: int):
+        self._SAMPLE_COUNT = value
 
     def render(self, scene, x, y):
         """
@@ -142,6 +204,8 @@ class Renderer(object):
             fresnel = self.fresnel(ray.direction, normal, 1.3)
             return (self.traceReflection(ray, scene, 6) * fresnel + self.traceRefraction(ray, scene, 6)) * (
                     1 - fresnel)
+        elif obj_hit.material == "mirror":
+            return self.traceReflection(ray, scene, 6)
 
         # if obj_hit.material == "transparent":
         #     return ColorRGBA(1, 1, 1, 1)
@@ -217,7 +281,10 @@ class Renderer(object):
         specular_strength = 0.25
         total_diffuse = 0
         total_specular = 0
-        ambient = self.ambient(normal_ray, scene, obj_color) * ambient_strength
+        ambient = ColorRGBA(0, 0, 0, 0)
+
+        if self.ambientOn:
+            ambient = self.ambient(normal_ray, scene, obj_color) * ambient_strength
         # ambient = ColorRGBA(0, 0, 0, 1)
         for light in scene.lights:
             ray = Ray(origin=normal_ray.origin,
@@ -226,15 +293,16 @@ class Renderer(object):
             if obj_hit is light:
                 # great we do hit this light
                 # diffuse part
-                n_dot_l = max(ray.direction.dot(normal_ray.direction), 0.0)
-                total_diffuse += n_dot_l * diffuse_strength
+                if self.diffuseOn:
+                    n_dot_l = max(ray.direction.dot(normal_ray.direction), 0.0)
+                    total_diffuse += n_dot_l * diffuse_strength
 
                 # specular part... fuck i need view position for this and I don't really wanna have 5 arguments.
-
-                reflect_dir = ray.direction.reflect(normal_ray.direction)
-                spec = math.pow(max(reflect_dir.normalize().dot(eye_ray.direction), 0.0), 4)
-                specular = specular_strength * spec
-                total_specular += specular
+                if self.specularOn:
+                    reflect_dir = ray.direction.reflect(normal_ray.direction)
+                    spec = math.pow(max(reflect_dir.normalize().dot(eye_ray.direction), 0.0), 4)
+                    specular = specular_strength * spec
+                    total_specular += specular
 
             # TODO: maybe ambient can use specific color from dome light.
         obj_color = obj_color * ((total_diffuse + total_specular) / 2)

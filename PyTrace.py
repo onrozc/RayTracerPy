@@ -36,7 +36,7 @@ class PaintWidget(QWidget):
 class PyTraceMainWindow(QMainWindow):
     def __init__(self, qApp, width, height):
         super(PyTraceMainWindow, self).__init__()
-        self.dock = QDockWidget("Dockable", self)
+        self.dock = QDockWidget("Settings", self)
         self.two_done = False
         self.qApp = qApp
         self.width = width
@@ -46,7 +46,7 @@ class PyTraceMainWindow(QMainWindow):
     def setupUi(self):
         if not self.objectName():
             self.setObjectName(u"PyTrace")
-        self.resize(self.width + 130, self.height + 30)
+        self.resize(self.width + 200, self.height + 50)
         self.setWindowTitle("CENG488 PyTrace")
         self.setStyleSheet("background-color:black;")
         self.setAutoFillBackground(True)
@@ -90,55 +90,134 @@ class PyTraceMainWindow(QMainWindow):
         self.statusBar.setStyleSheet("background-color:gray;")
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready...")
-        w = QWidget(self)
-        l = QVBoxLayout(w)
-        self.pushButton1 = QPushButton("Render!")
-        self.pushButton1.setStyleSheet("background-color: white")
-        # inputDialog = QWidget(self)
-        # inputDialog.setStyleSheet("background-color: white")
-        # self.pushButton2, b = QInputDialog.getText(inputDialog, "sample", "ana")
-        # a, c = QInputDialog.getText(inputDialog, "sample", "baba")
-        l.addWidget(self.pushButton1)
+
+
+        #dock
+        dockItems = QWidget(self)
+        self.leftDock = QFormLayout(dockItems)
+        dockItems.setStyleSheet("background-color: gray")
+
+        # sub sample size selection box
+        self.ssSize = QComboBox(self)
+        self.ssSize.setStyleSheet("""
+        background-color:white;
+        font-family: Titillium;
+        """)
+
+        self.ssSize.addItems(["1", "2", "4"])
+        self.leftDock.addRow("Subsample Size:", self.ssSize)
+
+        # ambient sample size
+        self.aoSize = QComboBox(self)
+        self.aoSize.setStyleSheet("background-color:white;")
+        self.aoSize.addItems(["2", "5", "10", "20", "50"])
+        self.leftDock.addRow("AO Sample Size:", self.aoSize)
+
+
+
         # l.addWidget(inputDialog)
+        #####################################
+        # exit button
+        # self.pauseButton = QPushButton("Stop!")
+        # self.pauseButton.setStyleSheet("background-color: white; ")
+        # leftDock.addRow(self.pauseButton)
+        #####################################
+        self.ambientOn = QCheckBox("Ambient On")
+        self.ambientOn.setChecked(True)
+        self.leftDock.addRow(self.ambientOn)
+
+        self.diffuseOn = QCheckBox("Diffuse On")
+        self.diffuseOn.setChecked(True)
+        self.leftDock.addRow(self.diffuseOn)
+
+        self.diffuseStrength = QDoubleSpinBox()
+        self.diffuseStrength.setSingleStep(0.05)
+        self.diffuseStrength.setMaximum(1.0)
+        self.diffuseStrength.setMinimum(0.0)
+        self.leftDock.addRow(self.diffuseStrength)
+
+        self.specularOn = QCheckBox("Specular On")
+        self.specularOn.setChecked(True)
+        self.leftDock.addRow(self.specularOn)
+        # text
+
+        # render button
+        self.renderButton = QPushButton("Render!")
+        self.renderButton.setStyleSheet("background-color: white; ")
+
+        self.leftDock.addRow(self.renderButton)
+
+        self.text = QLabel("This code is slow so\n   be patient please")
+        self.leftDock.addRow(self.text)
 
 
-        self.dock.setWidget(w)
+
+        self.dock.setWidget(dockItems)
 
         # self.pushButton.clicked.disconnect(self.buttonClick())
 
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
         self.setLayout(self.horizontalLayout)
 
-    @staticmethod
-    def buttonClick():
-        print("Button clicked, Hello!")
+    def diffValChanged(self):
+        print(self.diffuseStrength.value())
+
+    def ambientChanged(self):
+        renderer.ambientOn = self.ambientOn.isChecked()
+        print(self.ambientOn.isChecked())
+
+    def specularChanged(self):
+        renderer.specularOn = self.specularOn.isChecked()
+        print(self.specularOn.isChecked())
+
+    def diffuseChanged(self):
+        renderer.diffuseOn = self.diffuseOn.isChecked()
+        if renderer.diffuseOn:
+            self.diffuseStrength.show()
+        else:
+            self.diffuseStrength.hide()
+        print(self.diffuseOn.isChecked())
+
+    def selectionChange(self, i):
+        for count in range(self.ssSize.count()):
+            self.ssSize.itemText(count)
+
+    def aoChange(self, i):
+        for count in range(self.aoSize.count()):
+            self.aoSize.itemText(count)
+        renderer.SAMPLE_COUNT = int(self.aoSize.currentText())
+
+
 
     @staticmethod
     def renderMultiprocess(hmin):
         return hmin
 
     def resetBuffer(self):
-        mainWindow.pushButton1.clicked.disconnect(mainWindow.renderBuffer)
+        mainWindow.renderButton.clicked.disconnect(mainWindow.renderBuffer)
         self.paintWidget.imgBuffer.fill(QColor(0, 0, 0))
 
     def renderBuffer(self):
         print("Updating buffer...")
         # randHue = random.random()
-        AA = False
+        sub_sample = int(self.ssSize.currentText())
         # go through pixels
         start = time.time()
         for y in range(0, height):
             self.statusBar.showMessage(
-                "{:.1f}%                    cpu count is:{}".format(y / self.height * 100, multiprocessing.cpu_count()))
+                "{:.1f}% Done.".format(y / self.height * 100, multiprocessing.cpu_count()))
             for x in range(0, width):
-                if AA:
+                if sub_sample == 4:
                     sub_samples = [renderer.render(scene, x + 0.25, y + 0.25),
                                    renderer.render(scene, x + 0.75, y + 0.25),
                                    renderer.render(scene, x + 0.25, y + 0.75),
                                    renderer.render(scene, x + 0.75, y + 0.75)]
+                elif sub_sample == 2:
+                    sub_samples = [renderer.render(scene, x + 0.33, y + 0.33),
+                                   renderer.render(scene, x + 0.66, y + 0.66)]
 
                 else:
-                    sub_samples = [renderer.render(scene, x + 0.33, y + 0.33)]
+                    sub_samples = [renderer.render(scene, x + 0.5, y + 0.5)]
                 color = ColorRGBA(0, 0, 0, 1)
                 for sample in sub_samples:
                     color += ColorRGBA(sample[0], sample[1], sample[2], 1)
@@ -153,6 +232,7 @@ class PyTraceMainWindow(QMainWindow):
             self.updateBuffer()
             # don't wait for the task to finish to update the view
             qApp.processEvents()
+        self.statusBar.showMessage("Rendering Done.")
         end = time.time()
         print(end - start)
 
@@ -224,7 +304,6 @@ if __name__ == "__main__":
         )
         )
     )
-
     # setup main ui
     width = 900
     height = 900
@@ -232,8 +311,13 @@ if __name__ == "__main__":
     mainWindow.setupUi()
 
     mainWindow.show()
-    mainWindow.pushButton1.clicked.connect(mainWindow.renderBuffer)
-
+    mainWindow.renderButton.clicked.connect(mainWindow.renderBuffer)
+    mainWindow.ssSize.currentIndexChanged.connect(mainWindow.selectionChange)
+    mainWindow.aoSize.currentIndexChanged.connect(mainWindow.aoChange)
+    mainWindow.ambientOn.stateChanged.connect(mainWindow.ambientChanged)
+    mainWindow.diffuseOn.stateChanged.connect(mainWindow.diffuseChanged)
+    mainWindow.specularOn.stateChanged.connect(mainWindow.specularChanged)
+    mainWindow.diffuseStrength.valueChanged.connect(mainWindow.diffValChanged)
     # an example of writing to buffer
 
     # mainTimer = QTimer()
