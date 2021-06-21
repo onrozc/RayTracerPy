@@ -42,6 +42,7 @@ class Renderer(object):
         self.ambient_strength = 0.15
         self.diffuse_strength = 0.6
         self.specular_strength = 0.25
+        self.specular_roughness = 1
         # self.generateUniform()
         # self.createSamples()
 
@@ -68,6 +69,14 @@ class Renderer(object):
     @specular_strength.setter
     def specular_strength(self, value: float):
         self._specular_strength = value
+
+    @property
+    def specular_roughness(self) -> float:
+        return self._specular_roughness
+
+    @specular_roughness.setter
+    def specular_roughness(self, value: float):
+        self._specular_roughness = value
 
     @property
     def ambientOn(self) -> bool:
@@ -148,7 +157,7 @@ class Renderer(object):
         :return: Color of the pixel (Currently in grayscale)
         """
         # how many times rays can bounce
-        depth = 2
+        depth = 6
         # background color
         color = ColorRGBA(0.1, 0.1, 0.1, 0)
         # Find the nearest object hit by the ray in the scene
@@ -172,50 +181,30 @@ class Renderer(object):
         # due to our finite memory there will be numeric errors. So ving the hit position out a little fixes those.
         hit_pos = hit_pos + normal * 0.0001
 
-        # This is either none or A ray to a light but it must return list of lights, not a single light hit status.
-        # return self.phongShader(eye_ray=ray, normal_ray=Ray(hit_pos, normal),
-        #                         obj_color=obj_hit.color, scene=scene)
-        # TODO: Return multiple lights
-        # shadow = self.traceToLight(hit_pos, scene)
-        # this means the point is not seeing any light hence it is shadow.
-        # TODO: Ambient Occlusion
-        # if shadow is None:
-        #     return self.ambient(Ray(hit_pos, normal), scene, obj_hit.color) * 0.15
-        # else:
-        #     ambientStr = 0.15
-        #     ambient = self.ambient(Ray(hit_pos, normal), scene, obj_hit.color) * ambientStr
-
-            # return ColorRGBA(0.0, 0.0, 0.0, 0)
-        # if obj_hit.radius > 100:
-        #     print(hit_pos)
-        #     if int(hit_pos.x) % 2 == 1 and  int(hit_pos.z) % 2 == 1:
-        #         return ColorRGBA(0, 0.3, 0.4, 1)
         # If the object is matte calculate the diffuse and specular lights of the fragment
         if obj_hit.material == "diffuse":
             return self.phongShader(eye_ray=ray, normal_ray=Ray(hit_pos, normal),
                                     obj_color=obj_hit.color, scene=scene)
-
 
         # If the object is transparent there will be two rays:
         #   1) Reflection
         #   2) Refraction
         # And we need to combine those two for sake of Newton. Fresnel equations come in handy for that.
         elif obj_hit.material == "transparent":
-            fresnel = self.fresnel(ray.direction, normal, 1.3)
-            return (self.traceReflection(ray, scene, 6) * fresnel + self.traceRefraction(ray, scene, 6)) * (
+            fresnel = self.fresnel(ray.direction, normal, obj_hit.ior)
+            return (self.traceReflection(ray, scene, depth) * fresnel + self.traceRefraction(ray, scene, depth)) * (
                     1 - fresnel)
         elif obj_hit.material == "mirror":
-            return self.traceReflection(ray, scene, 6)
-
-        # if obj_hit.material == "transparent":
-        #     return ColorRGBA(1, 1, 1, 1)
-
+            return self.traceReflection(ray, scene, depth)
         return color
 
     def traceReflection(self, ray, scene, depth):
+        #
         color = ColorRGBA(0.01, 0.01, 0.01, 0)
         if depth == 0:
+            # return case from recursion
             return color
+        # If we still have some depth for more reflections
         dist_hit, obj_hit = self.findNearest(ray, scene)
 
         if obj_hit is None:
@@ -264,7 +253,7 @@ class Renderer(object):
             NdotL = normal.dot(ray.direction)
             hit_pos = hit_pos - normal * 0.0001
             if NdotL <= 0:
-                refr = ray.direction.refract(normal, 1.3)
+                refr = ray.direction.refract(normal, obj_hit.ior)
             else:
                 refr = ray.direction.refract(normal, 1)
             if refr == 0:
@@ -276,9 +265,9 @@ class Renderer(object):
             return color + self.traceRefraction(refraction, scene, depth - 1)
 
     def phongShader(self, eye_ray, normal_ray, obj_color, scene):
-        ambient_strength = 0.15
-        diffuse_strength = 0.6
-        specular_strength = 0.25
+        ambient_strength = self.ambient_strength
+        diffuse_strength = self.diffuse_strength
+        specular_strength = self.specular_strength
         total_diffuse = 0
         total_specular = 0
         ambient = ColorRGBA(0, 0, 0, 0)
@@ -297,20 +286,18 @@ class Renderer(object):
                     n_dot_l = max(ray.direction.dot(normal_ray.direction), 0.0)
                     total_diffuse += n_dot_l * diffuse_strength
 
-                # specular part... fuck i need view position for this and I don't really wanna have 5 arguments.
+                # specular part...
                 if self.specularOn:
                     reflect_dir = ray.direction.reflect(normal_ray.direction)
-                    spec = math.pow(max(reflect_dir.normalize().dot(eye_ray.direction), 0.0), 4)
+                    spec = math.pow(max(reflect_dir.normalize().dot(eye_ray.direction), 0.0), self.specular_roughness)
                     specular = specular_strength * spec
                     total_specular += specular
 
             # TODO: maybe ambient can use specific color from dome light.
-        obj_color = obj_color * ((total_diffuse + total_specular) / 2)
+        total_diffuse /= len(scene.lights)
+        total_specular /= len(scene.lights)
+        obj_color = obj_color * (total_diffuse + total_specular)
         return obj_color + ambient
-
-    @staticmethod
-    def specularColor(L, N, R, Intensity):
-        pass
 
     @staticmethod
     def fresnel(ray, normal, ior):
@@ -418,15 +405,6 @@ class Renderer(object):
             z = sinTheta * math.sin(phi)
             y = u1
 
-            # r = math.sqrt(u1)
-            # theta = 2 * math.pi * u2
-            # x = r * math.cos(theta)
-            # z = r * math.sin(theta)
-            # y = math.sqrt(max(0.0, 1-u1))
-
-            # deleted for optimization
-            # vec = Vector3f(x, y, z)
-            # rotating the sample to the hemisphere
             sample = Vector3f(
                 x * Nb.x + y * normalDir.x + z * Nt.x,
                 x * Nb.y + y * normalDir.y + z * Nt.y,
@@ -435,18 +413,13 @@ class Renderer(object):
 
             sampleRay = Ray(origin=normal.origin,
                             direction=sample)
-            # _, nearestObj = self.findNearest(sampleRay, scene)
-            # if nearestObj is not None:
-            #     color += nearestObj.color
 
             isHitting = self.isHittingSomething(sampleRay, scene)
             if isHitting is False:
                 color += objColor
-            # if sample hits any object
-            # if isHitting is True:
-            #     light_intensity += 1
+
         return color / self.SAMPLE_COUNT
-        # return self.SAMPLE_COUNT - light_intensity
+
 
     @staticmethod
     def createCoordSystem(normal):
@@ -467,26 +440,3 @@ class Renderer(object):
 
         return Nt, Nb
 
-    def createSamples(self):
-        """
-
-        :return:
-        """
-        for i in range(self.SAMPLE_COUNT):
-            u1 = random.uniform(0, 1)
-            u2 = random.uniform(0, 1)
-
-            sinTheta = math.sqrt(1 - u1 * u1)
-            phi = 2 * math.pi * u2
-            x = sinTheta * cos(phi)
-            z = sinTheta * sin(phi)
-            vec = Vector3f(x, u1, z)
-            self.samples.append(vec)
-
-    def generateUniform(self):
-        for i in range(self.SAMPLE_COUNT * 2):
-            u1 = random.uniform(0, 1)
-            u2 = random.uniform(0, 1)
-
-            self.uniforms.append(u1)
-            self.uniforms.append(u2)

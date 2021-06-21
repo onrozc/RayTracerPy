@@ -19,18 +19,23 @@ class Sphere:
                 material = prop["material"]
             except KeyError:
                 material = "diffuse"
+            try:
+                ior = prop["ior"]
+            except KeyError:
+                ior = None
             return Sphere(radius=prop["radius"],
                           position=Point3f(pos[0], pos[1], pos[2]),
                           color=ColorRGBA(clr[0],
                                           clr[1],
                                           clr[2], 1),
                           sType=sType,
-                          material=material)
+                          material=material,
+                          ior=ior)
         except ValueError:
             raise Exception("Parsing Error!")
 
     def __init__(self, radius=0, position=Point3f(0, 0, 0), color=ColorRGBA(0.8, 0.8, 0.8, 1), sType="object",
-                 material="diffuse"):
+                 material="diffuse", ior=None):
         """
 
         :param radius: radius of the sphere
@@ -42,6 +47,7 @@ class Sphere:
         self.color = color
         self.type = sType
         self.material = material
+        self.ior = ior
 
     @property
     def material(self) -> str:
@@ -78,7 +84,6 @@ class Sphere:
     def intersect(self, ray):
         """Checks if ray intersects this sphere. Returns distance to intersection or None if there is no intersection"""
         sphere_to_ray = ray.origin - self.position
-        # a = 1
         b = 2 * ray.direction.dot(sphere_to_ray)
         c = sphere_to_ray.dot(sphere_to_ray) - self.radius * self.radius
         discriminant = b * b - 4 * c
@@ -88,7 +93,6 @@ class Sphere:
             if dist > 0:
                 return dist
         return None
-
 
 
 class Light(Sphere):

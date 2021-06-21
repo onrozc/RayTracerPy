@@ -3,8 +3,7 @@ import multiprocessing
 import sys
 import random
 import time
-from multiprocessing import Pool
-
+from multiprocessing import Pool, Process
 
 from PySide2.QtCore import *
 from PySide2.QtGui import *
@@ -46,11 +45,10 @@ class PyTraceMainWindow(QMainWindow):
     def setupUi(self):
         if not self.objectName():
             self.setObjectName(u"PyTrace")
-        self.resize(self.width + 200, self.height + 50)
+        self.resize(self.width + 400, self.height + 50)
         self.setWindowTitle("CENG488 PyTrace")
         self.setStyleSheet("background-color:black;")
         self.setAutoFillBackground(True)
-
 
         # set centralWidget
         self.centralWidget = QWidget(self)
@@ -91,8 +89,7 @@ class PyTraceMainWindow(QMainWindow):
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage("Ready...")
 
-
-        #dock
+        # dock
         dockItems = QWidget(self)
         self.leftDock = QFormLayout(dockItems)
         dockItems.setStyleSheet("background-color: gray")
@@ -107,24 +104,23 @@ class PyTraceMainWindow(QMainWindow):
         self.ssSize.addItems(["1", "2", "4"])
         self.leftDock.addRow("Subsample Size:", self.ssSize)
 
-        # ambient sample size
-        self.aoSize = QComboBox(self)
-        self.aoSize.setStyleSheet("background-color:white;")
-        self.aoSize.addItems(["2", "5", "10", "20", "50"])
-        self.leftDock.addRow("AO Sample Size:", self.aoSize)
 
-
-
-        # l.addWidget(inputDialog)
-        #####################################
-        # exit button
-        # self.pauseButton = QPushButton("Stop!")
-        # self.pauseButton.setStyleSheet("background-color: white; ")
-        # leftDock.addRow(self.pauseButton)
-        #####################################
         self.ambientOn = QCheckBox("Ambient On")
         self.ambientOn.setChecked(True)
         self.leftDock.addRow(self.ambientOn)
+
+        self.ambientStrength = QDoubleSpinBox()
+        self.ambientStrength.setSingleStep(0.01)
+        self.ambientStrength.setValue(0.15)
+        self.ambientStrength.setMaximum(0.5)
+        self.ambientStrength.setMinimum(0.0)
+        self.leftDock.addRow(self.ambientStrength)
+
+        # ambient sample size
+        self.aoSize = QComboBox(self)
+        self.aoSize.setStyleSheet("background-color:white;")
+        self.aoSize.addItems(["2", "4", "8", "16", "32", "64"])
+        self.leftDock.addRow("AO Sample Size:", self.aoSize)
 
         self.diffuseOn = QCheckBox("Diffuse On")
         self.diffuseOn.setChecked(True)
@@ -132,6 +128,7 @@ class PyTraceMainWindow(QMainWindow):
 
         self.diffuseStrength = QDoubleSpinBox()
         self.diffuseStrength.setSingleStep(0.05)
+        self.diffuseStrength.setValue(0.6)
         self.diffuseStrength.setMaximum(1.0)
         self.diffuseStrength.setMinimum(0.0)
         self.leftDock.addRow(self.diffuseStrength)
@@ -141,16 +138,35 @@ class PyTraceMainWindow(QMainWindow):
         self.leftDock.addRow(self.specularOn)
         # text
 
+        self.sIntensity = QLabel("Specular Intensity")
+        self.leftDock.addRow(self.sIntensity)
+
+        self.specularStrength = QDoubleSpinBox()
+        self.specularStrength.setValue(0.25)
+        self.specularStrength.setSingleStep(0.05)
+        self.specularStrength.setMaximum(1.0)
+        self.specularStrength.setMinimum(0.0)
+        self.leftDock.addRow(self.specularStrength)
+
+        self.sRoughness = QLabel("Roughness")
+        self.leftDock.addRow(self.sRoughness)
+
+        self.specularRoughness = QSpinBox()
+        self.specularRoughness.setValue(4)
+        self.specularRoughness.setSingleStep(16)
+        self.specularRoughness.setMaximum(256)
+        self.specularRoughness.setMinimum(0)
+        self.leftDock.addRow(self.specularRoughness)
+
         # render button
         self.renderButton = QPushButton("Render!")
         self.renderButton.setStyleSheet("background-color: white; ")
 
         self.leftDock.addRow(self.renderButton)
 
-        self.text = QLabel("This code is slow so\n   be patient please")
+        self.text = QLabel("Three types of objects in this scene.\nMatte, Mirror, Glass, Light\n"
+                           "Changing lighting values\nwill change it for\nall matte objects")
         self.leftDock.addRow(self.text)
-
-
 
         self.dock.setWidget(dockItems)
 
@@ -159,16 +175,37 @@ class PyTraceMainWindow(QMainWindow):
         self.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
         self.setLayout(self.horizontalLayout)
 
+    def ambientValChanged(self):
+        renderer.ambient_strength = self.ambientStrength.value()
+
     def diffValChanged(self):
-        print(self.diffuseStrength.value())
+        renderer.diffuse_strength = self.diffuseStrength.value()
+        # print(self.diffuseStrength.value())
+
+    def specValChanged(self):
+        renderer.specular_strength = self.specularStrength.value()
 
     def ambientChanged(self):
         renderer.ambientOn = self.ambientOn.isChecked()
-        print(self.ambientOn.isChecked())
+        if renderer.ambientOn:
+            self.ambientStrength.show()
+            self.aoSize.show()
+
+        else:
+            self.ambientStrength.hide()
+            self.aoSize.hide()
+
+    def roughnessChanged(self):
+        renderer.specular_roughness = self.specularRoughness.value()
 
     def specularChanged(self):
         renderer.specularOn = self.specularOn.isChecked()
-        print(self.specularOn.isChecked())
+        if renderer.specularOn:
+            self.specularStrength.show()
+            self.specularRoughness.show()
+        else:
+            self.specularStrength.hide()
+            self.specularRoughness.hide()
 
     def diffuseChanged(self):
         renderer.diffuseOn = self.diffuseOn.isChecked()
@@ -176,9 +213,8 @@ class PyTraceMainWindow(QMainWindow):
             self.diffuseStrength.show()
         else:
             self.diffuseStrength.hide()
-        print(self.diffuseOn.isChecked())
 
-    def selectionChange(self, i):
+    def selectionChange(self):
         for count in range(self.ssSize.count()):
             self.ssSize.itemText(count)
 
@@ -186,12 +222,6 @@ class PyTraceMainWindow(QMainWindow):
         for count in range(self.aoSize.count()):
             self.aoSize.itemText(count)
         renderer.SAMPLE_COUNT = int(self.aoSize.currentText())
-
-
-
-    @staticmethod
-    def renderMultiprocess(hmin):
-        return hmin
 
     def resetBuffer(self):
         mainWindow.renderButton.clicked.disconnect(mainWindow.renderBuffer)
@@ -203,6 +233,7 @@ class PyTraceMainWindow(QMainWindow):
         sub_sample = int(self.ssSize.currentText())
         # go through pixels
         start = time.time()
+
         for y in range(0, height):
             self.statusBar.showMessage(
                 "{:.1f}% Done.".format(y / self.height * 100, multiprocessing.cpu_count()))
@@ -221,7 +252,7 @@ class PyTraceMainWindow(QMainWindow):
                 color = ColorRGBA(0, 0, 0, 1)
                 for sample in sub_samples:
                     color += ColorRGBA(sample[0], sample[1], sample[2], 1)
-                color = color/len(sub_samples)
+                color = color / len(sub_samples)
                 col = QColor.fromRgb(color.r, color.g, color.b)
 
                 self.paintWidget.imgBuffer.setPixelColor(x, y, col)
@@ -238,35 +269,6 @@ class PyTraceMainWindow(QMainWindow):
 
     def updateBuffer(self):
         self.paintWidget.update()
-
-
-class Worker(QRunnable):
-    '''
-    Worker thread
-
-    Inherits from QRunnable to handler worker thread setup, signals and wrap-up.
-
-    :param callback: The function callback to run on this worker thread. Supplied args and
-                     kwargs will be passed through to the runner.
-    :type callback: function
-    :param args: Arguments to pass to the callback function
-    :param kwargs: Keywords to pass to the callback function
-
-    '''
-
-    def __init__(self, fn, *args, **kwargs):
-        super(Worker, self).__init__()
-        # Store constructor arguments (re-used for processing)
-        self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
-
-    @Slot()  # QtCore.Slot
-    def run(self):
-        '''
-        Initialise the runner function with passed args, kwargs.
-        '''
-        self.fn(*self.args, **self.kwargs)
 
 
 if __name__ == "__main__":
@@ -318,12 +320,14 @@ if __name__ == "__main__":
     mainWindow.diffuseOn.stateChanged.connect(mainWindow.diffuseChanged)
     mainWindow.specularOn.stateChanged.connect(mainWindow.specularChanged)
     mainWindow.diffuseStrength.valueChanged.connect(mainWindow.diffValChanged)
+    mainWindow.specularStrength.valueChanged.connect(mainWindow.specValChanged)
+    mainWindow.ambientStrength.valueChanged.connect(mainWindow.ambientValChanged)
+    mainWindow.specularRoughness.valueChanged.connect(mainWindow.roughnessChanged)
     # an example of writing to buffer
 
     # mainTimer = QTimer()
     # mainTimer.timeout.connect(mainWindow.timerBuffer)
     # mainTimer.start(1000)
-
 
     # enter event loop
     sys.exit(qApp.exec_())
