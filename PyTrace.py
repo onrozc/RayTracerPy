@@ -129,7 +129,7 @@ class PyTraceMainWindow(QMainWindow):
         self.diffuseStrength = QDoubleSpinBox()
         self.diffuseStrength.setSingleStep(0.05)
         self.diffuseStrength.setValue(0.6)
-        self.diffuseStrength.setMaximum(1.0)
+        self.diffuseStrength.setMaximum(2.0)
         self.diffuseStrength.setMinimum(0.0)
         self.leftDock.addRow(self.diffuseStrength)
 
@@ -144,7 +144,7 @@ class PyTraceMainWindow(QMainWindow):
         self.specularStrength = QDoubleSpinBox()
         self.specularStrength.setValue(0.25)
         self.specularStrength.setSingleStep(0.05)
-        self.specularStrength.setMaximum(1.0)
+        self.specularStrength.setMaximum(2.0)
         self.specularStrength.setMinimum(0.0)
         self.leftDock.addRow(self.specularStrength)
 
@@ -236,7 +236,7 @@ class PyTraceMainWindow(QMainWindow):
 
         for y in range(0, height):
             self.statusBar.showMessage(
-                "{:.1f}% Done.".format(y / self.height * 100, multiprocessing.cpu_count()))
+                "{:.1f}% Done.".format(y / self.height * 100))
             for x in range(0, width):
                 if sub_sample == 4:
                     sub_samples = [renderer.render(scene, x + 0.25, y + 0.25),

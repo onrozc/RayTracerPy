@@ -159,7 +159,7 @@ class Renderer(object):
         # how many times rays can bounce
         depth = 6
         # background color
-        color = ColorRGBA(0.1, 0.1, 0.1, 0)
+        color = ColorRGBA(53/100, 81/100, 92/100, 0)
         # Find the nearest object hit by the ray in the scene
         dist_hit, obj_hit = self.findNearest(ray, scene)
         # if ray hits nothing return Background color
