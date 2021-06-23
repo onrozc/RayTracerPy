@@ -1,8 +1,7 @@
-# CENG 488 Assignment2 by
+# CENG 488 Assignment 8 by
 # Onur Ozcan
 # StudentId:240201032
-# 5 2021
-# This file is based on the template code given in CENG487
+# 6 2021
 from math import pi, sin, cos, sqrt, acos
 from vector import *
 import numpy

@@ -1,7 +1,7 @@
-# CENG 488 Assignment2 by
+# CENG 488 Assignment 8 by
 # Onur Ozcan
 # StudentId:240201032
-# 5 2021
+# 6 2021
 """
 References:
     Finding the normal aligned hemisphere:
@@ -195,7 +195,8 @@ class Renderer(object):
             return (self.traceReflection(ray, scene, depth) * fresnel + self.traceRefraction(ray, scene, depth)) * (
                     1 - fresnel)
         elif obj_hit.material == "mirror":
-            return self.traceReflection(ray, scene, depth)
+
+            return self.traceReflection(ray, scene, depth) + obj_hit.color
         return color
 
     def traceReflection(self, ray, scene, depth):
@@ -208,7 +209,7 @@ class Renderer(object):
         dist_hit, obj_hit = self.findNearest(ray, scene)
 
         if obj_hit is None:
-            return color
+            return ColorRGBA(53/100, 81/100, 92/100, 0)
         elif obj_hit.type == "light":
             return ColorRGBA(1, 1, 1, 1)
         elif obj_hit.material == "diffuse":
@@ -235,7 +236,7 @@ class Renderer(object):
         dist_hit, obj_hit = self.findNearest(ray, scene)
 
         if obj_hit is None:
-            return color
+            return ColorRGBA(53/100, 81/100, 92/100, 0)
         elif obj_hit.type == "light":
             return ColorRGBA(1, 1, 1, 1)
         elif obj_hit.material == "diffuse":

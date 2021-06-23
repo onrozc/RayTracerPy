@@ -1,7 +1,7 @@
-# CENG 488 Assignment2 by
+# CENG 488 Assignment 8 by
 # Onur Ozcan
 # StudentId:240201032
-# 5 2021
+# 6 2021
 # This file is based on the template code given in CENG487
 import copy
 from math import sqrt, acos

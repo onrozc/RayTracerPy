@@ -1,7 +1,7 @@
-# CENG 488 Assignment2 by
+# CENG 488 Assignment 8 by
 # Onur Ozcan
 # StudentId:240201032
-# 5 2021
+# 6 2021
 
 class Ray:
     def __init__(self, origin, direction):
